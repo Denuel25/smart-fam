@@ -12,13 +12,14 @@
       background-size: cover;
       background-repeat: no-repeat;
       background-position: center;
-      color: white;
+      color: #fff;
     }
     header {
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.7);
       padding: 1rem;
       text-align: center;
       font-size: 2rem;
+      letter-spacing: 1px;
     }
     .dashboard {
       display: grid;
@@ -28,11 +29,12 @@
       background: rgba(0, 0, 0, 0.5);
     }
     .card {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.13);
       padding: 1.5rem;
       border-radius: 1rem;
       text-align: center;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.45);
+      transition: box-shadow 0.2s;
     }
     .card h2 {
       font-size: 1.5rem;
@@ -41,10 +43,20 @@
       font-size: 3rem;
       margin-bottom: 1rem;
     }
+    .card[aria-label] {
+      outline: 2px solid #fff;
+      outline-offset: -5px;
+    }
     footer {
       text-align: center;
       padding: 1rem;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.7);
+      font-size: 1rem;
+    }
+    @media (max-width: 600px) {
+      header { font-size: 1.2rem; }
+      .card h2 { font-size: 1.1rem; }
+      .card i { font-size: 2rem; }
     }
   </style>
 </head>
@@ -53,20 +65,35 @@
   <header>🌾 Smart Farm Dashboard for Pupils</header>
 
   <div class="dashboard">
-    <div class="card">
-      <i class="fas fa-temperature-high"></i>
+    <div class="card" aria-label="Soil Moisture card">
+      <i class="fas fa-temperature-high" title="Soil Moisture" aria-label="Soil Moisture"></i>
       <h2>Soil Moisture</h2>
       <p id="soilMoisture">Loading...</p>
     </div>
-    <div class="card">
-      <i class="fas fa-tint"></i>
+    <div class="card" aria-label="Water Pump card">
+      <i class="fas fa-tint" title="Water Pump Status" aria-label="Water Pump Status"></i>
       <h2>Water Pump</h2>
       <p id="pumpStatus">Checking...</p>
     </div>
-    <div class="card">
-      <i id="weather-icon" class="fas fa-cloud"></i>
+    <div class="card" aria-label="Weather card">
+      <i id="weather-icon" class="fas fa-cloud" title="Weather" aria-label="Weather"></i>
       <h2>Weather</h2>
       <p id="weather-desc">Loading weather...</p>
+    </div>
+    <div class="card" aria-label="Temperature card">
+      <i class="fas fa-thermometer-half" title="Temperature" aria-label="Temperature"></i>
+      <h2>Temperature</h2>
+      <p id="temperature">Loading...</p>
+    </div>
+    <div class="card" aria-label="Humidity card">
+      <i class="fas fa-water" title="Humidity" aria-label="Humidity"></i>
+      <h2>Humidity</h2>
+      <p id="humidity">Loading...</p>
+    </div>
+    <div class="card" aria-label="Time card">
+      <i class="fas fa-clock" title="Current Time" aria-label="Current Time"></i>
+      <h2>Current Time</h2>
+      <p id="currentTime">Loading...</p>
     </div>
   </div>
 
@@ -91,60 +118,104 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Real-time listeners
+    // Real-time listeners with error handling
     const soilRef = ref(db, 'SmartFarm/soilMoisture');
     const pumpRef = ref(db, 'SmartFarm/pump');
 
-    onValue(soilRef, (snapshot) => {
-      const value = snapshot.val();
-      document.getElementById('soilMoisture').textContent = value + '%';
-    });
+    try {
+      onValue(soilRef, (snapshot) => {
+        const value = snapshot.val();
+        if (value !== null)
+          document.getElementById('soilMoisture').textContent = value + '%';
+        else
+          document.getElementById('soilMoisture').textContent = 'No data';
+      }, (error) => {
+        document.getElementById('soilMoisture').textContent = 'Error loading';
+      });
+    } catch {
+      document.getElementById('soilMoisture').textContent = 'Error';
+    }
 
-    onValue(pumpRef, (snapshot) => {
-      const status = snapshot.val();
-      document.getElementById('pumpStatus').textContent = status ? "💧 Pump ON" : "🛑 Pump OFF";
-    });
+    try {
+      onValue(pumpRef, (snapshot) => {
+        const status = snapshot.val();
+        if (status === null)
+          document.getElementById('pumpStatus').textContent = "No data";
+        else
+          document.getElementById('pumpStatus').textContent = status ? "💧 Pump ON" : "🛑 Pump OFF";
+      }, (error) => {
+        document.getElementById('pumpStatus').textContent = "Error loading";
+      });
+    } catch {
+      document.getElementById('pumpStatus').textContent = 'Error';
+    }
 
-    // Weather
+    // Weather, Temperature, Humidity
     async function updateWeather(city = "Lusaka") {
       const apiKey = "372f007a34cbec5e36fe3c0ce50a6ddb";
       const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
       try {
         const res = await fetch(url);
         const data = await res.json();
-        const main = data.weather[0].main;
-        const desc = data.weather[0].description;
-        document.getElementById("weather-desc").innerText = desc;
 
-        let iconClass = "fas fa-cloud";
-        let bg = "url('https://source.unsplash.com/1600x900/?farm')";
+        if (data.weather && data.weather.length > 0) {
+          const main = data.weather[0].main;
+          const desc = data.weather[0].description;
+          document.getElementById("weather-desc").innerText = desc;
 
-        if (main === "Clear") {
-          iconClass = "fas fa-sun";
-          bg = "url('https://source.unsplash.com/1600x900/?sunny,farm')";
-        } else if (main === "Rain") {
-          iconClass = "fas fa-cloud-showers-heavy";
-          bg = "url('https://source.unsplash.com/1600x900/?rainy,farm')";
-        } else if (main === "Clouds") {
-          iconClass = "fas fa-cloud";
-          bg = "url('https://source.unsplash.com/1600x900/?cloudy,farm')";
-        } else if (main === "Thunderstorm") {
-          iconClass = "fas fa-bolt";
-          bg = "url('https://source.unsplash.com/1600x900/?storm,farm')";
-        } else if (main === "Snow") {
-          iconClass = "fas fa-snowflake";
-          bg = "url('https://source.unsplash.com/1600x900/?snow,farm')";
+          let iconClass = "fas fa-cloud";
+          let bg = "url('https://source.unsplash.com/1600x900/?farm')";
+
+          if (main === "Clear") {
+            iconClass = "fas fa-sun";
+            bg = "url('https://source.unsplash.com/1600x900/?sunny,farm')";
+          } else if (main === "Rain") {
+            iconClass = "fas fa-cloud-showers-heavy";
+            bg = "url('https://source.unsplash.com/1600x900/?rainy,farm')";
+          } else if (main === "Clouds") {
+            iconClass = "fas fa-cloud";
+            bg = "url('https://source.unsplash.com/1600x900/?cloudy,farm')";
+          } else if (main === "Thunderstorm") {
+            iconClass = "fas fa-bolt";
+            bg = "url('https://source.unsplash.com/1600x900/?storm,farm')";
+          } else if (main === "Snow") {
+            iconClass = "fas fa-snowflake";
+            bg = "url('https://source.unsplash.com/1600x900/?snow,farm')";
+          }
+
+          document.getElementById("weather-icon").className = iconClass;
+          document.body.style.backgroundImage = bg;
+        } else {
+          document.getElementById("weather-desc").innerText = "No weather info";
         }
 
-        document.getElementById("weather-icon").className = iconClass;
-        document.body.style.backgroundImage = bg;
+        // Temperature and Humidity
+        if (data.main) {
+          document.getElementById("temperature").innerText = data.main.temp + " °C";
+          document.getElementById("humidity").innerText = data.main.humidity + " %";
+        } else {
+          document.getElementById("temperature").innerText = "No data";
+          document.getElementById("humidity").innerText = "No data";
+        }
       } catch (error) {
         console.error("Weather API Error:", error);
-        document.getElementById("weather-desc").innerText = "Weather info unavailable";
+        document.getElementById("weather-desc").innerText = "Weather unavailable";
+        document.getElementById("temperature").innerText = "Unavailable";
+        document.getElementById("humidity").innerText = "Unavailable";
       }
     }
 
     updateWeather();
+
+    // Time Card
+    function updateTime() {
+      const now = new Date();
+      const timeString = now
+        .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      document.getElementById('currentTime').innerText = timeString;
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
   </script>
 </body>
 </html>
