@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Farm Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      color: white;
+    }
+    header {
+      background: rgba(0, 0, 0, 0.6);
+      padding: 1rem;
+      text-align: center;
+      font-size: 2rem;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      padding: 2rem;
+      background: rgba(0, 0, 0, 0.5);
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 1.5rem;
+      border-radius: 1rem;
+      text-align: center;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+    }
+    .card h2 {
+      font-size: 1.5rem;
+    }
+    .card i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    footer {
+      text-align: center;
+      padding: 1rem;
+      background: rgba(0,0,0,0.6);
+    }
+  </style>
+</head>
+<body>
+
+  <header>🌾 Smart Farm Dashboard for Pupils</header>
+
+  <div class="dashboard">
+    <div class="card">
+      <i class="fas fa-temperature-high"></i>
+      <h2>Soil Moisture</h2>
+      <p id="soilMoisture">Loading...</p>
+    </div>
+    <div class="card">
+      <i class="fas fa-tint"></i>
+      <h2>Water Pump</h2>
+      <p id="pumpStatus">Checking...</p>
+    </div>
+    <div class="card">
+      <i id="weather-icon" class="fas fa-cloud"></i>
+      <h2>Weather</h2>
+      <p id="weather-desc">Loading weather...</p>
+    </div>
+  </div>
+
+  <footer>© 2025 Smart Farm • Made for Learning by Professor Emmanuel Inambao ❤️</footer>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.7.3/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.7.3/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDEbz5joFYzk2NNRMWVSd6Ukavut4lvJrs",
+      authDomain: "smart-farm-robotic.firebaseapp.com",
+      databaseURL: "https://smart-farm-robotic-default-rtdb.firebaseio.com",
+      projectId: "smart-farm-robotic",
+      storageBucket: "smart-farm-robotic.appspot.com",
+      messagingSenderId: "180424838311",
+      appId: "1:180424838311:web:c7f2f4fb97096070af1f82",
+      measurementId: "G-SQZJWK5CLY"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Real-time listeners
+    const soilRef = ref(db, 'SmartFarm/soilMoisture');
+    const pumpRef = ref(db, 'SmartFarm/pump');
+
+    onValue(soilRef, (snapshot) => {
+      const value = snapshot.val();
+      document.getElementById('soilMoisture').textContent = value + '%';
+    });
+
+    onValue(pumpRef, (snapshot) => {
+      const status = snapshot.val();
+      document.getElementById('pumpStatus').textContent = status ? "💧 Pump ON" : "🛑 Pump OFF";
+    });
+
+    // Weather
+    async function updateWeather(city = "Lusaka") {
+      const apiKey = "372f007a34cbec5e36fe3c0ce50a6ddb";
+      const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        const main = data.weather[0].main;
+        const desc = data.weather[0].description;
+        document.getElementById("weather-desc").innerText = desc;
+
+        let iconClass = "fas fa-cloud";
+        let bg = "url('https://source.unsplash.com/1600x900/?farm')";
+
+        if (main === "Clear") {
+          iconClass = "fas fa-sun";
+          bg = "url('https://source.unsplash.com/1600x900/?sunny,farm')";
+        } else if (main === "Rain") {
+          iconClass = "fas fa-cloud-showers-heavy";
+          bg = "url('https://source.unsplash.com/1600x900/?rainy,farm')";
+        } else if (main === "Clouds") {
+          iconClass = "fas fa-cloud";
+          bg = "url('https://source.unsplash.com/1600x900/?cloudy,farm')";
+        } else if (main === "Thunderstorm") {
+          iconClass = "fas fa-bolt";
+          bg = "url('https://source.unsplash.com/1600x900/?storm,farm')";
+        } else if (main === "Snow") {
+          iconClass = "fas fa-snowflake";
+          bg = "url('https://source.unsplash.com/1600x900/?snow,farm')";
+        }
+
+        document.getElementById("weather-icon").className = iconClass;
+        document.body.style.backgroundImage = bg;
+      } catch (error) {
+        console.error("Weather API Error:", error);
+        document.getElementById("weather-desc").innerText = "Weather info unavailable";
+      }
+    }
+
+    updateWeather();
+  </script>
+</body>
+</html>
